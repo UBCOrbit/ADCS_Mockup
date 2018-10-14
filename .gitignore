@@ -1,0 +1,19 @@
+# Ignore generated config files
+**.mk
+**makefile
+**.opt
+**.d
+**.d_raw
+**linkInfo.xml
+**/targetConfigs
+**.map
+**/.launches
+
+
+# Ignore compiled binaries
+**.lib
+**.out
+**.obj
+
+# Ignore temp files
+**~
