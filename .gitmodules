@@ -1,3 +1,9 @@
 [submodule "generated_launchpad"]
 	path = generated_launchpad
 	url = git@github.com:UBCOrbit/ADCS_HalCoGen_launchpad.git
+[submodule "I2C"]
+	path = I2C
+	url = git@github.com:UBCOrbit/ADCS_I2C.git
+[submodule "LSM9DS1"]
+	path = LSM9DS1
+	url = git@github.com:UBCOrbit/ADCS_LSM9DS1.git
