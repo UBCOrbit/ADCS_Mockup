@@ -43,6 +43,8 @@
 
 
 /* USER CODE BEGIN (0) */
+#include <stdio.h>
+#include <string.h>
 #include "sci.h"
 #include "adc.h"
 #include "stdlib.h"
@@ -52,6 +54,9 @@
 #include "FreeRTOS.h"
 #include "os_semphr.h"
 #include "os_task.h"
+
+#include "LSM9DS1.h"
+#include "serial_debug.h"
 /* USER CODE END */
 
 /* Include Files */
@@ -59,38 +64,44 @@
 #include "sys_common.h"
 
 /* USER CODE BEGIN (1) */
-xSemaphoreHandle sci_mutex;
+
 
 void vTaskLocalization(void *pvParameters) {
+    imu_t imu;
+    const char imu_error[] = "[LOCALIZATION] Error intializing IMU";
+    const char imu_success[] = "[LOCALIZATION] IMU initialized!";
+
+    imu_config_t imu_config =
+    {
+     .enable_accel = true,
+     .enable_mag = true,
+     .enable_gyro = false,
+     .ag_addr = LSM9DS1_AG_ADDR(1),
+     .mag_addr = LSM9DS1_M_ADDR(1),
+     .calibrate = false,
+     .low_power_mode = true
+    };
+
+    if(!LSM9DS1_init(&imu, &imu_config)) {
+        sciSafeSend(scilinREG, strlen(imu_error), imu_error);
+    } else {
+        sciSafeSend(scilinREG, strlen(imu_error), imu_success);
+    }
+
     adcData_t adc_data;
     adcData_t *adc_data_ptr = &adc_data;
-    unsigned int NumberOfChars, value;
-    unsigned char command[8];
-    bool waitingToSend;
+    unsigned int  value;
+    char buffer[64];
 
     for(;;) {
-        waitingToSend = true;
         adcStartConversion(adcREG1, adcGROUP1);
         while(!adcIsConversionComplete(adcREG1, adcGROUP1))
             vTaskDelay(10); // switch to other threads while adc does stuff
 
         adcGetData(adcREG1, adcGROUP1, adc_data_ptr);
         value = (unsigned int)adc_data_ptr->value;
-        NumberOfChars = ltoa(value, (char*)command);
-
-        while(waitingToSend) {
-            waitingToSend = !xSemaphoreTake(sci_mutex, 100);
-            if(!waitingToSend) {
-                sciSend(scilinREG, 42, "[LOCALIZATION] Recieved data from sensor: ");
-                sciSend(scilinREG, NumberOfChars, command);
-                sciSend(scilinREG, 2, (unsigned char*)"\r\n");
-                xSemaphoreGive(sci_mutex);
-            } else {
-                vTaskDelay(10);
-            }
-        }
-
-
+        sprintf(buffer, "[LOCALIZATION] Received data from sensor: %d\r\n", value);
+        sciSafeSend(scilinREG, strlen(buffer), buffer);
         vTaskDelay(100);
 
         // Do kalman filter stuff with the data here
