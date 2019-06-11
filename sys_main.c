@@ -68,6 +68,7 @@ void vTaskLocalization(void *pvParameters) {
     unsigned char command[8];
     bool waitingToSend;
 
+
     for(;;) {
         waitingToSend = true;
         adcStartConversion(adcREG1, adcGROUP1);
@@ -150,6 +151,7 @@ int main(void)
 /* USER CODE BEGIN (3) */
     sciInit();
     adcInit();
+    char* thing = malloc(8*sizeof(char));
 
     sci_mutex = xSemaphoreCreateMutex();
 
