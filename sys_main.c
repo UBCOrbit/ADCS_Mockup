@@ -46,12 +46,15 @@
 #include "sci.h"
 #include "adc.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 #include "system.h"
 
 #include "FreeRTOS.h"
 #include "os_semphr.h"
 #include "os_task.h"
+
+#include "orbit_debug.h"
 /* USER CODE END */
 
 /* Include Files */
@@ -59,37 +62,28 @@
 #include "sys_common.h"
 
 /* USER CODE BEGIN (1) */
-xSemaphoreHandle sci_mutex;
 
 void vTaskLocalization(void *pvParameters) {
     adcData_t adc_data;
     adcData_t *adc_data_ptr = &adc_data;
-    unsigned int NumberOfChars, value;
-    unsigned char command[8];
-    bool waitingToSend;
+    unsigned int value;
+
+    char msgBuffer[128];
+    DebugMsg debugMsg;
+    DebugMsg* debugMsgPtr = &debugMsg;
+    debugMsg.msg = msgBuffer;
+    debugMsg.dynamic = false;
 
     for(;;) {
-        waitingToSend = true;
         adcStartConversion(adcREG1, adcGROUP1);
         while(!adcIsConversionComplete(adcREG1, adcGROUP1))
             vTaskDelay(10); // switch to other threads while adc does stuff
 
         adcGetData(adcREG1, adcGROUP1, adc_data_ptr);
         value = (unsigned int)adc_data_ptr->value;
-        NumberOfChars = ltoa(value, (char*)command);
 
-        while(waitingToSend) {
-            waitingToSend = !xSemaphoreTake(sci_mutex, 100);
-            if(!waitingToSend) {
-                sciSend(scilinREG, 42, "[LOCALIZATION] Recieved data from sensor: ");
-                sciSend(scilinREG, NumberOfChars, command);
-                sciSend(scilinREG, 2, (unsigned char*)"\r\n");
-                xSemaphoreGive(sci_mutex);
-            } else {
-                vTaskDelay(10);
-            }
-        }
-
+        sprintf(msgBuffer, "[LOCALIZATION] Received data from sensor %d", value);
+        debugPrint(&debugMsgPtr);
 
         vTaskDelay(100);
 
@@ -98,37 +92,30 @@ void vTaskLocalization(void *pvParameters) {
 }
 
 void vTaskPositioning(void *pvParameters) {
-    bool waitingToSend;
+    char msgBuffer[64];
+    DebugMsg debugMsg;
+    DebugMsg* debugMsgPtr = &debugMsg;
+    debugMsg.msg = msgBuffer;
+    debugMsg.dynamic = false;
     for(;;) {
-        waitingToSend = true;
-        while(waitingToSend) {
-            waitingToSend = !xSemaphoreTake(sci_mutex, 100);
-            if(!waitingToSend) {
-                sciSend(scilinREG, 27, "[POSITIONING] Unimplemented");
-                sciSend(scilinREG, 2, (unsigned char*)"\r\n");
-                xSemaphoreGive(sci_mutex);
-            } else {
-                vTaskDelay(10);
-            }
-        }
+        sprintf(msgBuffer, "[POSITIONING] Unimplemented");
+        debugPrint(&debugMsgPtr);
         vTaskDelay(1000);
     }
 }
 
 void vTaskCommunication(void *pvParameters) {
-    bool waitingToSend;
+    // Try Dynamic allocation
+    char *msgBuffer;
+    DebugMsg* debugMsgPtr;
     for(;;) {
-        waitingToSend = true;
-        while(waitingToSend) {
-            waitingToSend = !xSemaphoreTake(sci_mutex, 100);
-            if(!waitingToSend) {
-                sciSend(scilinREG, 29, "[COMMUNICATION] Unimplemented");
-                sciSend(scilinREG, 2, (unsigned char*)"\r\n");
-                xSemaphoreGive(sci_mutex);
-            } else {
-                vTaskDelay(10);
-            }
-        }
+        msgBuffer = malloc(64*sizeof(char));
+        debugMsgPtr = malloc(sizeof(DebugMsg));
+        debugMsgPtr->msg = msgBuffer;
+        debugMsgPtr->dynamic = true;
+
+        sprintf(msgBuffer, "[COMMUNICATION] Unimplemented");
+        debugPrint(&debugMsgPtr);
         vTaskDelay(1500);
     }
 }
@@ -148,10 +135,9 @@ void vTaskCommunication(void *pvParameters) {
 int main(void)
 {
 /* USER CODE BEGIN (3) */
-    sciInit();
     adcInit();
 
-    sci_mutex = xSemaphoreCreateMutex();
+    initDebugTask();
 
     if (xTaskCreate(vTaskLocalization, "Localization", (uint16_t)1024, NULL, 1, NULL) != pdTRUE)
         for(;;);
