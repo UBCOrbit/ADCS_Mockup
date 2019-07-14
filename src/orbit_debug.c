@@ -18,6 +18,8 @@ void initDebugTask() {
 
 void debugTask(void* p) {
     DebugMsg* m;
+    const char* debug_init_msg = "[Debug] Thread Init\r\n";
+    sciSend(scilinREG, strlen(debug_init_msg), (uint8*)debug_init_msg);
     for(;;) {
         if(xQueueReceive(debugQueueHandle, &m, 100)) {
             if(m != NULL) {

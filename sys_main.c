@@ -51,10 +51,10 @@
 #include "system.h"
 
 #include "FreeRTOS.h"
-#include "os_semphr.h"
 #include "os_task.h"
 
 #include "orbit_debug.h"
+#include "orbit_i2c.h"
 /* USER CODE END */
 
 /* Include Files */
@@ -62,6 +62,8 @@
 #include "sys_common.h"
 
 /* USER CODE BEGIN (1) */
+
+xTaskHandle localization_handle;
 
 void vTaskLocalization(void *pvParameters) {
     adcData_t adc_data;
@@ -73,6 +75,25 @@ void vTaskLocalization(void *pvParameters) {
     DebugMsg* debugMsgPtr = &debugMsg;
     debugMsg.msg = msgBuffer;
     debugMsg.dynamic = false;
+
+    uint8_t i2c_data[] = { 40 };
+
+    i2c_cmd_t i2c_cmd;
+    i2c_cmd_t* i2c_cmd_ptr = &i2c_cmd;
+    i2c_cmd.cmd = 30;
+    i2c_cmd.num_bytes = 1;
+    i2c_cmd.data = i2c_data;
+    i2c_cmd.destination = 0x1F;
+    i2c_cmd.response_handle = &localization_handle;
+    i2c_cmd.wr = WRITE_DATA;
+
+    sprintf(
+            msgBuffer,
+            "[Localization] Thread Init");
+    debugPrint(&debugMsgPtr);
+
+    // FIXME
+//    i2c_do_transaction(&i2c_cmd_ptr);
 
     for(;;) {
         adcStartConversion(adcREG1, adcGROUP1);
@@ -138,8 +159,9 @@ int main(void)
     adcInit();
 
     initDebugTask();
+    initI2CTask();
 
-    if (xTaskCreate(vTaskLocalization, "Localization", (uint16_t)1024, NULL, 1, NULL) != pdTRUE)
+    if (xTaskCreate(vTaskLocalization, "Localization", (uint16_t)1024, NULL, 1, &localization_handle) != pdTRUE)
         for(;;);
     if (xTaskCreate(vTaskPositioning, "Positioning", configMINIMAL_STACK_SIZE, NULL, 1, NULL) != pdTRUE)
         for(;;);
